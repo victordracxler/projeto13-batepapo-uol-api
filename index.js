@@ -26,6 +26,12 @@ const userSchema = joi.object({
 	name: joi.string().required(),
 });
 
+const msgSchema = joi.object({
+	to: joi.string().required().min(1),
+	text: joi.string().required().min(1),
+	type: joi.string().required().valid('message', 'private_message'),
+});
+
 // ROUTES
 
 app.post('/participants', async (req, res) => {
@@ -71,7 +77,46 @@ app.get('/participants', async (req, res) => {
 	try {
 		const participantsList = await userCollection.find({}).toArray();
 		res.send(participantsList);
-	} catch (err) {}
+	} catch (err) {
+		console.log(err);
+		res.sendStatus(500);
+	}
+});
+
+app.post('/messages', async (req, res) => {
+	const { user } = req.headers;
+	const message = req.body;
+
+	try {
+		const userExists = await userCollection.findOne({ name: user });
+		if (!userExists) {
+			res.status(422).send({ message: 'Usuário não está conectado' });
+			return;
+		}
+
+		const { validationError } = msgSchema.validate(message, {
+			abortEarly: false,
+		});
+		if (validationError) {
+			const errors = validationError.details.map(
+				(detail) => detail.message
+			);
+			return res.status(400).send(errors);
+		}
+
+		const formatTime = dayjs().format('HH:mm:ss');
+
+		await msgsCollection.insertOne({
+			...message,
+			from: user,
+			time: formatTime,
+		});
+
+		res.sendStatus(201);
+	} catch (err) {
+		console.log(err);
+		res.sendStatus(500);
+	}
 });
 
 app.listen(5000, () => {
