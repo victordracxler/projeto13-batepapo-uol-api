@@ -171,6 +171,32 @@ app.post('/status', async (req, res) => {
 	}
 });
 
+const refreshDelay = 15000;
+
+setInterval(async () => {
+	try {
+		const usersList = await userCollection.find().toArray();
+		usersList.forEach(async (user) => {
+			const now = Date.now();
+			const formatTime = dayjs(now).format('HH:mm:ss');
+
+			if (now - user.lastStatus > 10000) {
+				await msgsCollection.insertOne({
+					from: user.name,
+					to: 'Todos',
+					text: 'sai da sala...',
+					type: 'status',
+					time: formatTime,
+				});
+
+				await userCollection.deleteOne({ name: user.name });
+			}
+		});
+	} catch (err) {
+		console.log(err);
+	}
+}, refreshDelay);
+
 app.listen(5000, () => {
 	console.log(`Server running in port: ${5000}`);
 });
