@@ -119,6 +119,33 @@ app.post('/messages', async (req, res) => {
 	}
 });
 
+app.get('/messages', async (req, res) => {
+	const limit = Number(req.query.limit);
+	const { user } = req.headers;
+
+	try {
+		const list = await msgsCollection.find().toArray();
+		const filteredList = list.filter((message) => {
+			if (
+				message.type === 'message' ||
+				message.to === user ||
+				message.type === 'status'
+			) {
+				return true;
+			}
+		});
+
+		if (limit) {
+			res.send(filteredList.slice(-limit));
+			return;
+		}
+		res.send(filteredList);
+	} catch (err) {
+		console.log(err);
+		res.sendStatus(500);
+	}
+});
+
 app.listen(5000, () => {
 	console.log(`Server running in port: ${5000}`);
 });
